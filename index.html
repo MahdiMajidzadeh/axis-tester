@@ -6,118 +6,208 @@
 <title>Axis Tester</title>
 <style>
 :root {
-  --bg: #0e1014; --panel: #161920; --panel2: #1d212a; --line: #2a2f3a;
-  --text: #e7e9ee; --muted: #8e96a8; --accent: #4da3ff; --ok: #3ecf8e;
-  --warn: #f5b84a; --bad: #ff5d5d; --a: #ff9f43; --b: #b28cff;
+  /* surfaces */
+  --bg: #0e1014; --bg-deep: #0b0d11; --panel: #161920; --panel-2: #1d212a; --panel-3: #232834;
+  --line: #2a2f3a; --line-2: #3d4554;
+  /* text */
+  --text: #e7e9ee; --text-2: #c6ccd8; --muted: #8e96a8; --faint: #5d6577;
+  /* semantic colors */
+  --accent: #4da3ff; --accent-hi: #6cb4ff; --accent-ink: #06121f;
+  --ok: #3ecf8e; --warn: #f5b84a; --bad: #ff5d5d; --bad-hi: #ff7676;
+  --a: #ff9f43; --b: #b28cff; --target: #ffd166; --live: #ffffff;
+  /* tinted variants */
+  --accent-soft: #4da3ff14; --accent-line: #4da3ff55;
+  --ok-soft: #3ecf8e14; --ok-line: #3ecf8e55;
+  --warn-soft: #f5b84a14; --warn-line: #f5b84a55; --warn-text: #f3d9a4;
+  --bad-soft: #ff5d5d14; --bad-line: #ff5d5d55; --bad-text: #ffc4c4;
+  /* canvas */
+  --grid-minor: #171b22; --grid-major: #252a35; --grid-frame: #3a4150; --grid-label: #6b7385;
+  /* scale */
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --fs-xs: 11px; --fs-sm: 12px; --fs-md: 13px; --fs-base: 14px;
+  --ctl-h: 34px; --ctl-h-sm: 28px;
+  --hdr-h: 56px;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-button, input, select { font: inherit; color: inherit; }
-button {
-  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
-  padding: 7px 12px; cursor: pointer; white-space: nowrap;
-}
-button:hover:not(:disabled) { border-color: #3d4554; background: #232834; }
-button:disabled { opacity: .45; cursor: not-allowed; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
-button.primary:hover:not(:disabled) { background: #6cb4ff; }
-button.estop { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 700; letter-spacing: .03em; }
-button.estop:hover:not(:disabled) { background: #ff7676; }
-button.stop { border-color: var(--warn); color: var(--warn); font-weight: 600; }
-input, select {
-  background: #0f1217; border: 1px solid var(--line); border-radius: 7px;
-  padding: 6px 8px; width: 100%; min-width: 0;
-}
-input:focus, select:focus { outline: 2px solid #4da3ff55; border-color: var(--accent); }
-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
-
-header {
-  position: sticky; top: 0; z-index: 10; background: #0e1014ee; backdrop-filter: blur(6px);
-  border-bottom: 1px solid var(--line); padding: 10px 16px;
-  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-}
-header h1 { font-size: 15px; margin: 0 6px 0 0; font-weight: 650; }
-.conn { display: flex; gap: 6px; flex: 1 1 360px; min-width: 0; }
-.conn input { flex: 1; }
-.conn input.key { flex: 0 1 140px; }
-.pill { font-size: 12px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
-.pill.ok { color: var(--ok); border-color: #3ecf8e55; }
-.pill.warn { color: var(--warn); border-color: #f5b84a55; }
-.pill.bad { color: var(--bad); border-color: #ff5d5d55; }
-.hdr-actions { display: flex; gap: 6px; margin-left: auto; }
-
-.banner { margin: 12px 16px 0; padding: 10px 12px; border-radius: 8px; border: 1px solid #f5b84a55; background: #f5b84a14; color: #f3d9a4; font-size: 13px; }
-.banner code { font-family: var(--mono); background: #0006; padding: 1px 5px; border-radius: 4px; }
-.banner.bad { border-color: #ff5d5d55; background: #ff5d5d14; color: #ffc4c4; }
+body { background: var(--bg); color: var(--text); font: var(--fs-base)/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+code { font-family: var(--mono); }
 .hidden { display: none !important; }
 
-main { display: grid; grid-template-columns: minmax(330px, 420px) 1fr; gap: 16px; padding: 16px; align-items: start; }
-@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
-.card + .card { margin-top: 16px; }
-.card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+/* ---------- controls ---------- */
+button, input, select { font: inherit; color: inherit; }
+button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: var(--ctl-h); padding: 0 12px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r-md);
+  cursor: pointer; white-space: nowrap; line-height: 1.2;
+  transition: background .12s, border-color .12s, color .12s;
+}
+button:hover:not(:disabled) { border-color: var(--line-2); background: var(--panel-3); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.sm { height: var(--ctl-h-sm); padding: 0 9px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+button.primary:hover:not(:disabled) { background: var(--accent-hi); border-color: var(--accent-hi); }
+button.estop { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 700; letter-spacing: .03em; }
+button.estop:hover:not(:disabled) { background: var(--bad-hi); border-color: var(--bad-hi); }
+button.stop { border-color: var(--warn-line); color: var(--warn); font-weight: 600; }
+button.stop:hover:not(:disabled) { border-color: var(--warn); background: var(--warn-soft); }
+button.sel, button.toggle.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+button.sel:hover:not(:disabled), button.toggle.on:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+input, select {
+  height: var(--ctl-h); background: var(--bg-deep); border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 0 10px; width: 100%; min-width: 0;
+}
+input.sm, select.sm { height: var(--ctl-h-sm); padding: 0 8px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
+input::placeholder { color: var(--faint); }
+input:focus, select:focus { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1px; }
+label { display: block; font-size: var(--fs-sm); color: var(--muted); margin-bottom: var(--sp-1); }
 
+/* ---------- header ---------- */
+header {
+  position: sticky; top: 0; z-index: 10; min-height: var(--hdr-h);
+  background: #0e1014e6; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line); padding: 10px var(--sp-4);
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+header h1 { font-size: 15px; margin: 0 var(--sp-2) 0 0; font-weight: 650; letter-spacing: .01em; }
+.conn { display: flex; gap: 6px; flex: 1 1 360px; min-width: 0; }
+.conn input { flex: 1; }
+.conn input.key { flex: 0 1 150px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; height: var(--ctl-h-sm);
+  font-size: var(--fs-sm); font-weight: 500; padding: 0 10px; border-radius: 99px;
+  border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+}
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.pill.ok { color: var(--ok); border-color: var(--ok-line); background: var(--ok-soft); }
+.pill.warn { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
+.pill.bad { color: var(--bad); border-color: var(--bad-line); background: var(--bad-soft); }
+.hdr-actions { display: flex; gap: 6px; margin-left: auto; }
+@media (max-width: 760px) {
+  .conn { flex-basis: 100%; order: 3; }
+  .hdr-actions { margin-left: auto; }
+}
+
+/* ---------- banners ---------- */
+.banner {
+  margin: var(--sp-3) var(--sp-4) 0; padding: 10px 12px; border-radius: var(--r-md);
+  border: 1px solid var(--warn-line); background: var(--warn-soft); color: var(--warn-text); font-size: var(--fs-md);
+}
+.banner code { background: #0006; padding: 1px 5px; border-radius: 4px; }
+.banner.bad { border-color: var(--bad-line); background: var(--bad-soft); color: var(--bad-text); }
+
+/* ---------- layout ---------- */
+main {
+  display: grid; gap: var(--sp-4); padding: var(--sp-4); align-items: start;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  grid-template-areas: "tests viz" "setup viz";
+}
+@media (min-width: 1240px) {
+  main { grid-template-columns: 300px 340px minmax(0, 1fr); grid-template-areas: "tests setup viz"; }
+}
+@media (max-width: 880px) {
+  main { grid-template-columns: 1fr; grid-template-areas: "tests" "setup" "viz"; }
+}
+.area-tests { grid-area: tests; } .area-setup { grid-area: setup; } .area-viz { grid-area: viz; }
+.col { display: grid; gap: var(--sp-4); min-width: 0; align-content: start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px; min-width: 0; }
+.card h2 {
+  display: flex; align-items: center; gap: var(--sp-2); min-height: var(--ctl-h-sm);
+  font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; font-weight: 600;
+}
+.cardhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.cardhead h2 { margin: 0; }
+.sub { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+
+/* ---------- test picker ---------- */
 .tests { display: grid; gap: 6px; }
 .test {
-  text-align: left; padding: 9px 11px; display: block; width: 100%; white-space: normal;
+  height: auto; display: block; width: 100%; text-align: left; white-space: normal;
+  padding: 8px 11px; line-height: 1.35;
 }
-.test b { display: block; font-weight: 600; }
-.test span { color: var(--muted); font-size: 12px; }
-.test.sel { border-color: var(--accent); background: #4da3ff14; }
+.test b { display: block; font-weight: 600; font-size: var(--fs-md); color: var(--text); }
+.test span { display: block; color: var(--muted); font-size: var(--fs-sm); margin-top: 2px; }
+.test.sel b { color: var(--accent); }
+.tip {
+  margin-top: var(--sp-3); font-size: var(--fs-md); color: var(--text-2); line-height: 1.5;
+  background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 8px 10px; border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
 
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
-.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 10px; }
-.presets { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 10px; }
-.presets button { padding: 4px 9px; font-size: 12px; }
-.presets .lbl { font-size: 12px; color: var(--muted); align-self: center; width: 44px; }
-.sub { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-.tip { margin-top: 12px; font-size: 13px; color: #c6ccd8; background: #4da3ff10; border-left: 3px solid var(--accent); padding: 8px 10px; border-radius: 0 6px 6px 0; }
-.eff { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+/* ---------- setup ---------- */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2) 10px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2) 10px; }
+.presets { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 10px; }
+.presets .lbl { font-size: var(--fs-sm); color: var(--muted); flex: 1 1 100%; margin-bottom: -1px; }
+.eff { font-family: var(--mono); font-size: var(--fs-sm); color: var(--muted); margin-top: var(--sp-3); line-height: 1.6; white-space: pre-wrap; }
 .eff .w { color: var(--warn); }
-.runrow { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
-.runrow .primary { flex: 1; padding: 10px; }
-
-.viz { position: relative; }
-.vizhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-.vizhead h2 { margin: 0; }
-button.toggle.on { background: #4da3ff22; border-color: var(--accent); color: var(--accent); font-weight: 600; }
-.freepanel { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; padding: 10px; border: 1px solid #4da3ff44; border-radius: 8px; background: #4da3ff0d; font-size: 13px; }
-.freepanel .hint { color: #c6ccd8; flex: 1 1 100%; }
-.freepanel .grp { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
-.freepanel .grp > span { color: var(--muted); font-size: 12px; }
-.freepanel button { padding: 4px 9px; font-size: 12px; min-width: 32px; }
-.freepanel input, .freepanel select { width: auto; padding: 3px 6px; font-size: 12px; }
-.freepanel input { width: 70px; }
-canvas.free { cursor: crosshair; }
-canvas { width: 100%; height: 460px; display: block; background: #0b0d11; border-radius: 8px; border: 1px solid var(--line); }
-.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 8px; }
-.legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
-.stat { background: var(--panel2); border-radius: 8px; padding: 8px 10px; }
-.stat small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
-.stat div { font-family: var(--mono); font-size: 13px; margin-top: 2px; overflow-wrap: anywhere; }
-.progress { height: 6px; background: var(--panel2); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+.runrow { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); align-items: center; }
+.runrow .primary { flex: 1; height: 40px; font-size: 15px; }
+.runstate { margin-top: 10px; }
+.progress { height: 6px; background: var(--panel-2); border-radius: 99px; overflow: hidden; }
 .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
-.progtext { font-size: 12px; color: var(--muted); margin-top: 5px; font-family: var(--mono); }
-.log { font-family: var(--mono); font-size: 12px; max-height: 220px; overflow: auto; background: #0b0d11; border-radius: 8px; padding: 8px 10px; border: 1px solid var(--line); }
+.progtext { font-size: var(--fs-sm); color: var(--muted); margin-top: 5px; font-family: var(--mono); }
+
+/* ---------- preview ---------- */
+.viz { position: relative; }
+.freepanel {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2) 14px; align-items: center; margin-bottom: 10px; padding: 10px;
+  border: 1px solid var(--accent-line); border-radius: var(--r-md); background: var(--accent-soft); font-size: var(--fs-md);
+}
+.freepanel .hint { color: var(--text-2); flex: 1 1 100%; }
+.freepanel .grp { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.freepanel .grp > span { color: var(--muted); font-size: var(--fs-sm); }
+.freepanel button { min-width: 32px; }
+.freepanel input, .freepanel select { width: auto; }
+.freepanel input { width: 72px; }
+canvas {
+  width: 100%; height: auto; aspect-ratio: 4 / 3; max-height: 600px; display: block;
+  background: var(--bg-deep); border-radius: var(--r-md); border: 1px solid var(--line);
+}
+canvas.free { cursor: crosshair; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-sm); color: var(--muted); margin-top: var(--sp-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; }
+
+/* ---------- printer ---------- */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--panel-2); border-radius: var(--r-md); padding: 8px 10px; min-width: 0; }
+.stat.wide { grid-column: 1 / -1; }
+.stat small { display: block; color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; }
+.stat div { font-family: var(--mono); font-size: var(--fs-md); margin-top: 2px; overflow-wrap: anywhere; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ---------- log ---------- */
+.log {
+  font-family: var(--mono); font-size: var(--fs-sm); line-height: 1.5; min-height: 80px; max-height: 240px; overflow: auto;
+  background: var(--bg-deep); border-radius: var(--r-md); padding: 8px 10px; border: 1px solid var(--line);
+}
 .log div { white-space: pre-wrap; }
-.log .t { color: #5d6577; }
+.log .t { color: var(--faint); }
 .log .err { color: var(--bad); }
 .log .warn { color: var(--warn); }
 .log .ok { color: var(--ok); }
-.tools { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 
-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 18px; max-width: 460px; width: calc(100% - 32px); }
+/* ---------- dialog ---------- */
+dialog {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 18px; max-width: 460px; width: calc(100% - 32px);
+}
 dialog::backdrop { background: #000a; }
-dialog h3 { margin: 0 0 8px; font-size: 16px; }
-dialog .body { color: #c6ccd8; font-size: 14px; }
-dialog .body table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
-dialog .body td { padding: 3px 0; border-bottom: 1px solid var(--line); }
+dialog h3 { margin: 0 0 var(--sp-2); font-size: 16px; }
+dialog .body { color: var(--text-2); font-size: var(--fs-base); }
+dialog .body p { margin: 0; }
+dialog .body .note { margin: 10px 0 0; font-size: var(--fs-md); color: var(--muted); }
+dialog .body table { width: 100%; border-collapse: collapse; margin-top: var(--sp-2); font-size: var(--fs-md); }
+dialog .body td { padding: 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 dialog .body td:last-child { text-align: right; font-family: var(--mono); }
-dialog .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+dialog .body td.w { color: var(--warn); }
+dialog .btns { display: flex; gap: var(--sp-2); justify-content: flex-end; margin-top: var(--sp-4); }
 </style>
 </head>
 <body>
@@ -144,15 +234,14 @@ dialog .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1
 <div class="banner bad hidden" id="errBanner"></div>
 
 <main>
-  <section>
-    <div class="card">
-      <h2>1 · Test</h2>
+    <div class="card area-tests">
+      <h2>Test</h2>
       <div class="tests" id="tests"></div>
       <div class="tip" id="tip"></div>
     </div>
 
-    <div class="card">
-      <h2>2 · Area &amp; speed</h2>
+    <div class="card area-setup">
+      <h2>Setup</h2>
       <div class="presets" id="sizePresets"><span class="lbl">Size</span></div>
       <div class="grid2">
         <div><label for="sizeX">X size (mm)</label><input id="sizeX" type="number" min="1" step="1" value="100"></div>
@@ -160,15 +249,15 @@ dialog .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1
         <div><label for="cx">Center X (mm)</label><input id="cx" type="number" step="1"></div>
         <div><label for="cy">Center Y (mm)</label><input id="cy" type="number" step="1"></div>
       </div>
-      <div id="speedBlock">
-        <div class="presets" id="speedPresets" style="margin-top:12px"><span class="lbl">Speed</span></div>
+      <div class="sub" id="speedBlock">
+        <div class="presets" id="speedPresets"><span class="lbl">Speed</span></div>
         <div class="grid2">
           <div><label for="speed">Speed (mm/s)</label><input id="speed" type="number" min="1" step="5" value="100"></div>
           <div><label for="accel">Accel (mm/s², blank = keep)</label><input id="accel" type="number" min="100" step="100" placeholder="keep"></div>
         </div>
       </div>
       <div class="sub" id="testParams"></div>
-      <div class="grid2" style="margin-top:8px">
+      <div class="grid2 sub">
         <div><label for="repeats">Repeats</label><input id="repeats" type="number" min="1" max="50" step="1" value="2"></div>
         <div><label for="zlift">Z lift before test (mm)</label><input id="zlift" type="number" min="0" step="1" value="10"></div>
       </div>
@@ -176,29 +265,30 @@ dialog .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1
       <div class="runrow">
         <button class="primary" id="runBtn" disabled>Run test</button>
       </div>
-      <div class="progress"><div id="progBar"></div></div>
-      <div class="progtext" id="progText">&nbsp;</div>
+      <div class="runstate hidden" id="runState">
+        <div class="progress"><div id="progBar"></div></div>
+        <div class="progtext" id="progText"></div>
+      </div>
     </div>
-  </section>
 
-  <section>
+  <section class="col area-viz">
     <div class="card viz">
-      <div class="vizhead">
-        <h2>Path preview &amp; live position</h2>
-        <button class="toggle" id="freeBtn" type="button" disabled title="Click anywhere on the map to move the nozzle there">Free mode: off</button>
+      <div class="cardhead">
+        <h2>Preview &amp; live position</h2>
+        <button class="toggle sm" id="freeBtn" type="button" disabled title="Click anywhere on the map to move the nozzle there">Free mode: off</button>
       </div>
       <div class="freepanel hidden" id="freePanel">
         <div class="hint">Click anywhere on the map to move the nozzle there. Clicks are ignored until it arrives. Arrow keys jog X/Y.</div>
-        <div class="grp"><span>Speed</span><input id="freeSpeed" type="number" min="1" step="10" value="100"><span>mm/s</span></div>
+        <div class="grp"><span>Speed</span><input class="sm" id="freeSpeed" type="number" min="1" step="10" value="100"><span>mm/s</span></div>
         <div class="grp"><span>Jog</span>
-          <select id="jogStep" title="Jog distance"><option value="1">1 mm</option><option value="10" selected>10 mm</option><option value="50">50 mm</option></select>
-          <button type="button" data-jog="-1,0" title="X− (←)">X−</button><button type="button" data-jog="1,0" title="X+ (→)">X+</button>
-          <button type="button" data-jog="0,1" title="Y+ (↑)">Y+</button><button type="button" data-jog="0,-1" title="Y− (↓)">Y−</button>
+          <select class="sm" id="jogStep" title="Jog distance"><option value="1">1 mm</option><option value="10" selected>10 mm</option><option value="50">50 mm</option></select>
+          <button type="button" class="sm" data-jog="-1,0" title="X− (←)">X−</button><button type="button" class="sm" data-jog="1,0" title="X+ (→)">X+</button>
+          <button type="button" class="sm" data-jog="0,1" title="Y+ (↑)">Y+</button><button type="button" class="sm" data-jog="0,-1" title="Y− (↓)">Y−</button>
         </div>
         <div class="grp"><span>Go to</span>
-          <button type="button" data-spot="c">Center</button>
-          <button type="button" data-spot="tl" title="Back-left corner">↖</button><button type="button" data-spot="tr" title="Back-right corner">↗</button>
-          <button type="button" data-spot="bl" title="Front-left corner">↙</button><button type="button" data-spot="br" title="Front-right corner">↘</button>
+          <button type="button" class="sm" data-spot="c">Center</button>
+          <button type="button" class="sm" data-spot="tl" title="Back-left corner">↖</button><button type="button" class="sm" data-spot="tr" title="Back-right corner">↗</button>
+          <button type="button" class="sm" data-spot="bl" title="Front-left corner">↙</button><button type="button" class="sm" data-spot="br" title="Front-right corner">↘</button>
         </div>
       </div>
       <canvas id="cv"></canvas>
@@ -843,6 +933,7 @@ function update() {
   for (const l of lines) { const d = document.createElement("div"); d.textContent = l; el.appendChild(d); }
   for (const n of P.notes) { const d = document.createElement("div"); d.className = "w"; d.textContent = "⚠ " + n; el.appendChild(d); }
   if (!limits().real) { const d = document.createElement("div"); d.className = "w"; d.textContent = "Not connected — previewing on a 235×235 demo bed."; el.appendChild(d); }
+  markPresets();
   draw();
   renderStatus();
 }
@@ -856,7 +947,8 @@ function renderPresets() {
   ];
   for (const [name, fx, fy] of sizes) {
     const b = document.createElement("button");
-    b.type = "button"; b.textContent = name;
+    b.type = "button"; b.className = "sm"; b.textContent = name;
+    b.dataset.fx = fx; b.dataset.fy = fy;
     b.title = `X ${fx * 100}% · Y ${fy * 100}% of usable bed`;
     b.onclick = () => {
       const L = limits();
@@ -869,11 +961,22 @@ function renderPresets() {
   const vp = $("#speedPresets");
   for (const [name, v] of [["Slow", 30], ["Normal", 100], ["Fast", 200], ["Very fast", 350], ["Max", 0]]) {
     const b = document.createElement("button");
-    b.type = "button"; b.textContent = name;
+    b.type = "button"; b.className = "sm"; b.textContent = name;
+    b.dataset.v = v;
     b.title = v ? `${v} mm/s` : "printer max_velocity";
     b.onclick = () => { $("#speed").value = v || maxVel(); saveCommon(); update(); };
     vp.appendChild(b);
   }
+}
+
+// Highlight the preset that matches the current inputs (same look as the selected test).
+function markPresets() {
+  const L = limits(), sx = num("sizeX"), sy = num("sizeY"), sp = num("speed");
+  const usableX = L.xmax - L.xmin - 2 * MARGIN, usableY = L.ymax - L.ymin - 2 * MARGIN;
+  for (const b of $("#sizePresets").querySelectorAll("button"))
+    b.classList.toggle("sel", sx === Math.floor(usableX * +b.dataset.fx) && sy === Math.floor(usableY * +b.dataset.fy));
+  for (const b of $("#speedPresets").querySelectorAll("button"))
+    b.classList.toggle("sel", Math.abs(sp - (+b.dataset.v || maxVel())) < 0.01);
 }
 
 const COMMON = ["sizeX", "sizeY", "cx", "cy", "speed", "accel", "repeats", "zlift"];
@@ -936,7 +1039,7 @@ function renderStatus() {
   }
   if (S.klippy !== "ready" && S.klippyMsg && S.connected) {
     const d = document.createElement("div");
-    d.className = "stat"; d.style.gridColumn = "1 / -1";
+    d.className = "stat wide";
     d.innerHTML = "<small>Klipper message</small><div></div>";
     d.querySelector("div").textContent = S.klippyMsg.trim();
     box.appendChild(d);
@@ -945,6 +1048,13 @@ function renderStatus() {
 
 // ---------- canvas ----------
 const cv = $("#cv"), ctx = cv.getContext("2d");
+// Palette comes from the CSS tokens so canvas, legend and UI stay in sync.
+const C = (() => {
+  const cs = getComputedStyle(document.documentElement), o = {};
+  for (const k of ["accent", "accent-line", "ok", "warn", "bad", "a", "b", "target", "live", "muted", "faint", "text", "bg-deep",
+    "grid-minor", "grid-major", "grid-frame", "grid-label"]) o[k] = cs.getPropertyValue("--" + k).trim();
+  return o;
+})();
 function speedColor(v, lo, hi) {
   const t = hi > lo ? (v - lo) / (hi - lo) : 0.5;
   const hue = 210 - 210 * t; // blue → red
@@ -968,15 +1078,15 @@ function draw() {
   ctx.lineWidth = 1;
   const stepMm = bw > 400 ? 100 : 50;
   for (let x = Math.ceil(L.xmin / 10) * 10; x <= L.xmax; x += 10) {
-    ctx.strokeStyle = x % stepMm === 0 ? "#252a35" : "#171b22";
+    ctx.strokeStyle = x % stepMm === 0 ? C["grid-major"] : C["grid-minor"];
     ctx.beginPath(); ctx.moveTo(X(x) + .5, Y(L.ymin)); ctx.lineTo(X(x) + .5, Y(L.ymax)); ctx.stroke();
   }
   for (let y = Math.ceil(L.ymin / 10) * 10; y <= L.ymax; y += 10) {
-    ctx.strokeStyle = y % stepMm === 0 ? "#252a35" : "#171b22";
+    ctx.strokeStyle = y % stepMm === 0 ? C["grid-major"] : C["grid-minor"];
     ctx.beginPath(); ctx.moveTo(X(L.xmin), Y(y) + .5); ctx.lineTo(X(L.xmax), Y(y) + .5); ctx.stroke();
   }
-  ctx.strokeStyle = "#3a4150"; ctx.strokeRect(X(L.xmin), Y(L.ymax), bw * sc, bh * sc);
-  ctx.fillStyle = "#6b7385"; ctx.font = "11px ui-monospace, Menlo, monospace";
+  ctx.strokeStyle = C["grid-frame"]; ctx.strokeRect(X(L.xmin), Y(L.ymax), bw * sc, bh * sc);
+  ctx.fillStyle = C["grid-label"]; ctx.font = "11px ui-monospace, Menlo, monospace";
   ctx.textAlign = "left"; ctx.fillText(`${f2(L.xmin)},${f2(L.ymin)}`, X(L.xmin), Y(L.ymin) + 14);
   ctx.textAlign = "right"; ctx.fillText(`${f2(L.xmax)},${f2(L.ymax)}`, X(L.xmax), Y(L.ymax) - 5);
   ctx.textAlign = "left"; ctx.fillText("X →", X(L.xmax) - 20, Y(L.ymin) + 14);
@@ -985,12 +1095,12 @@ function draw() {
   const P = S.prog;
   if (S.free) {
     const b = safeBounds();
-    ctx.setLineDash([4, 4]); ctx.strokeStyle = "#4da3ff66"; ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = C["accent-line"]; ctx.lineWidth = 1;
     ctx.strokeRect(X(b.x0), Y(b.y1), (b.x1 - b.x0) * sc, (b.y1 - b.y0) * sc);
     ctx.setLineDash([]);
   } else if (P) {
     const a = P.a;
-    ctx.setLineDash([4, 4]); ctx.strokeStyle = "#4da3ff66";
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = C["accent-line"];
     ctx.strokeRect(X(a.x0), Y(a.y1), a.w * sc, a.h * sc);
     ctx.setLineDash([]);
     let prev = null;
@@ -998,10 +1108,10 @@ function draw() {
     for (const st of P.steps) {
       if (st.t !== "move") continue;
       if (prev) {
-        if (st.tag === "travel") { ctx.setLineDash([3, 4]); ctx.strokeStyle = "#5d6577"; ctx.lineWidth = 1; }
+        if (st.tag === "travel") { ctx.setLineDash([3, 4]); ctx.strokeStyle = C.faint; ctx.lineWidth = 1; }
         else {
           ctx.setLineDash([]); ctx.lineWidth = 1.6;
-          ctx.strokeStyle = st.tag === "A" ? "#ff9f43" : st.tag === "B" ? "#b28cff" : speedColor(st.k ?? st.v, P.kmin, P.kmax);
+          ctx.strokeStyle = st.tag === "A" ? C.a : st.tag === "B" ? C.b : speedColor(st.k ?? st.v, P.kmin, P.kmax);
         }
         ctx.globalAlpha = S.running ? 0.45 : 0.9;
         ctx.beginPath(); ctx.moveTo(X(prev[0]), Y(prev[1])); ctx.lineTo(X(st.x), Y(st.y)); ctx.stroke();
@@ -1010,11 +1120,11 @@ function draw() {
     }
     ctx.globalAlpha = 1; ctx.setLineDash([]);
     const first = P.steps.find((s) => s.t === "move");
-    if (first) { ctx.fillStyle = "#3ecf8e"; ctx.beginPath(); ctx.arc(X(first.x), Y(first.y), 4, 0, 7); ctx.fill(); }
+    if (first) { ctx.fillStyle = C.ok; ctx.beginPath(); ctx.arc(X(first.x), Y(first.y), 4, 0, 7); ctx.fill(); }
   }
   // trail
   if (S.trail.length > 1) {
-    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.4; ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = C.live; ctx.lineWidth = 1.4; ctx.globalAlpha = 0.85;
     ctx.beginPath(); ctx.moveTo(X(S.trail[0][0]), Y(S.trail[0][1]));
     for (const p of S.trail) ctx.lineTo(X(p[0]), Y(p[1]));
     ctx.stroke(); ctx.globalAlpha = 1;
@@ -1022,19 +1132,19 @@ function draw() {
   // live head
   if (S.live && S.th) {
     const hx = X(S.live[0]), hy = Y(S.live[1]);
-    ctx.strokeStyle = "#ffffff55"; ctx.lineWidth = 1;
+    ctx.strokeStyle = C.live + "55"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(hx, Y(L.ymin)); ctx.lineTo(hx, Y(L.ymax)); ctx.moveTo(X(L.xmin), hy); ctx.lineTo(X(L.xmax), hy); ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.strokeStyle = "#ff5d5d"; ctx.lineWidth = 2;
+    ctx.fillStyle = C.live; ctx.strokeStyle = C.bad; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(hx, hy, 5, 0, 7); ctx.fill(); ctx.stroke();
   }
   if (S.free && S.freeTarget) {
     const [tx, ty] = S.freeTarget;
-    ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 2;
+    ctx.strokeStyle = C.target; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(X(tx), Y(ty), 9, 0, 7); ctx.moveTo(X(tx) - 13, Y(ty)); ctx.lineTo(X(tx) + 13, Y(ty)); ctx.moveTo(X(tx), Y(ty) - 13); ctx.lineTo(X(tx), Y(ty) + 13); ctx.stroke();
   }
   if (S.free && S.hover) {
     const { x, y } = S.hover, ok = inSafe(S.hover), px = X(x), py = Y(y);
-    const col = !ok ? "#ff5d5d" : S.running ? "#8e96a8" : "#4da3ff";
+    const col = !ok ? C.bad : S.running ? C.muted : C.accent;
     ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(px, Y(L.ymin)); ctx.lineTo(px, Y(L.ymax)); ctx.moveTo(X(L.xmin), py); ctx.lineTo(X(L.xmax), py); ctx.stroke();
     ctx.setLineDash([]);
@@ -1044,22 +1154,22 @@ function draw() {
     let lx = px + 12, ly = py - 26;
     if (lx + tw > W - 4) lx = px - 12 - tw;
     if (ly < 4) ly = py + 10;
-    ctx.fillStyle = "#0b0d11e6"; ctx.fillRect(lx, ly, tw, 20);
+    ctx.fillStyle = C["bg-deep"] + "e6"; ctx.fillRect(lx, ly, tw, 20);
     ctx.strokeStyle = col; ctx.strokeRect(lx + .5, ly + .5, tw - 1, 19);
-    ctx.fillStyle = col === "#4da3ff" ? "#e7e9ee" : col; ctx.textAlign = "left"; ctx.fillText(label, lx + 6, ly + 14);
+    ctx.fillStyle = col === C.accent ? C.text : col; ctx.textAlign = "left"; ctx.fillText(label, lx + 6, ly + 14);
   }
   renderLegend();
 }
 
 function renderLegend() {
   const P = S.free ? null : S.prog, lg = $("#legend");
-  const items = S.free ? [["#4da3ff", "safe area"], ["#ffd166", "target"]] : [["#3ecf8e", "start"], ["#5d6577", "travel"]];
+  const items = S.free ? [[C.accent, "safe area"], [C.target, "target"]] : [[C.ok, "start"], [C.faint, "travel"]];
   if (P && P.kmax > 0) {
     if (P.kmin !== P.kmax) items.push([`linear-gradient(90deg, ${speedColor(0, 0, 1)}, ${speedColor(1, 0, 1)})`, `${f2(P.kmin)} → ${f2(P.kmax)} ${P.unit}`]);
     else items.push([speedColor(1, 0, 2), `${f2(P.kmax)} ${P.unit}`]);
   }
-  if (P && P.steps.some((s) => s.tag === "A")) items.push(["#ff9f43", "motor A only"], ["#b28cff", "motor B only"]);
-  items.push(["#ffffff", "live path"]);
+  if (P && P.steps.some((s) => s.tag === "A")) items.push([C.a, "motor A only"], [C.b, "motor B only"]);
+  items.push([C.live, "live path"]);
   lg.innerHTML = "";
   for (const [c, t] of items) {
     const s = document.createElement("span");
@@ -1075,7 +1185,7 @@ function dialog(title, bodyNode, buttons) {
     const d = $("#dlg");
     $("#dlgTitle").textContent = title;
     const body = $("#dlgBody"); body.innerHTML = "";
-    if (typeof bodyNode === "string") { const p = document.createElement("p"); p.style.margin = 0; p.textContent = bodyNode; body.appendChild(p); }
+    if (typeof bodyNode === "string") { const p = document.createElement("p"); p.textContent = bodyNode; body.appendChild(p); }
     else body.appendChild(bodyNode);
     const bb = $("#dlgBtns"); bb.innerHTML = "";
     const done = (v) => { d.close(); resolve(v); };
@@ -1097,7 +1207,7 @@ function summaryTable(rows) {
   for (const [k, v, warn] of rows) {
     const tr = t.insertRow();
     tr.insertCell().textContent = k;
-    const c = tr.insertCell(); c.textContent = v; if (warn) c.style.color = "var(--warn)";
+    const c = tr.insertCell(); c.textContent = v; if (warn) c.className = "w";
   }
   wrap.appendChild(t);
   return wrap;
@@ -1105,8 +1215,9 @@ function summaryTable(rows) {
 
 // ---------- run ----------
 function setProgress(frac, text) {
+  $("#runState").classList.toggle("hidden", !text);
   $("#progBar").style.width = `${clamp(frac, 0, 1) * 100}%`;
-  $("#progText").textContent = text || " ";
+  $("#progText").textContent = text || "";
 }
 
 function moveLine(st) { return `G1 X${st.x.toFixed(3)} Y${st.y.toFixed(3)} F${Math.round(st.v * 60)}`; }
@@ -1132,7 +1243,7 @@ async function runTest() {
   for (const n of P.notes) rows.push(["Note", n, true]);
   const body = summaryTable(rows);
   const p = document.createElement("p");
-  p.style.margin = "10px 0 0"; p.style.fontSize = "13px"; p.style.color = "var(--muted)";
+  p.className = "note";
   p.textContent = "Make sure nothing is on the bed and keep a hand near EMERGENCY STOP.";
   body.appendChild(p);
   if (await dialog("Run test?", body, [{ label: "Cancel", value: false }, { label: "Run", value: true, cls: "primary" }]) !== true) return;
@@ -1140,6 +1251,7 @@ async function runTest() {
   setError("");
   if (S.free) setFree(false);
   S.running = true; S.inTest = true; S.abort = false; S.estopped = false; S.trail = [];
+  setProgress(0, "Preparing…");
   saveCommon(); renderStatus(); schedulePoll();
   const origAccel = S.th.max_accel;
   let saved = false, accelChanged = false, doneMsg = null;

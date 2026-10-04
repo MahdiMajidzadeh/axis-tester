@@ -81,6 +81,17 @@ main { display: grid; grid-template-columns: minmax(330px, 420px) 1fr; gap: 16px
 .runrow .primary { flex: 1; padding: 10px; }
 
 .viz { position: relative; }
+.vizhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.vizhead h2 { margin: 0; }
+button.toggle.on { background: #4da3ff22; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.freepanel { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; padding: 10px; border: 1px solid #4da3ff44; border-radius: 8px; background: #4da3ff0d; font-size: 13px; }
+.freepanel .hint { color: #c6ccd8; flex: 1 1 100%; }
+.freepanel .grp { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.freepanel .grp > span { color: var(--muted); font-size: 12px; }
+.freepanel button { padding: 4px 9px; font-size: 12px; min-width: 32px; }
+.freepanel input, .freepanel select { width: auto; padding: 3px 6px; font-size: 12px; }
+.freepanel input { width: 70px; }
+canvas.free { cursor: crosshair; }
 canvas { width: 100%; height: 460px; display: block; background: #0b0d11; border-radius: 8px; border: 1px solid var(--line); }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 8px; }
 .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
@@ -172,7 +183,24 @@ dialog .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1
 
   <section>
     <div class="card viz">
-      <h2>Path preview &amp; live position</h2>
+      <div class="vizhead">
+        <h2>Path preview &amp; live position</h2>
+        <button class="toggle" id="freeBtn" type="button" disabled title="Click anywhere on the map to move the nozzle there">Free mode: off</button>
+      </div>
+      <div class="freepanel hidden" id="freePanel">
+        <div class="hint">Click anywhere on the map to move the nozzle there. Clicks are ignored until it arrives. Arrow keys jog X/Y.</div>
+        <div class="grp"><span>Speed</span><input id="freeSpeed" type="number" min="1" step="10" value="100"><span>mm/s</span></div>
+        <div class="grp"><span>Jog</span>
+          <select id="jogStep" title="Jog distance"><option value="1">1 mm</option><option value="10" selected>10 mm</option><option value="50">50 mm</option></select>
+          <button type="button" data-jog="-1,0" title="X− (←)">X−</button><button type="button" data-jog="1,0" title="X+ (→)">X+</button>
+          <button type="button" data-jog="0,1" title="Y+ (↑)">Y+</button><button type="button" data-jog="0,-1" title="Y− (↓)">Y−</button>
+        </div>
+        <div class="grp"><span>Go to</span>
+          <button type="button" data-spot="c">Center</button>
+          <button type="button" data-spot="tl" title="Back-left corner">↖</button><button type="button" data-spot="tr" title="Back-right corner">↗</button>
+          <button type="button" data-spot="bl" title="Front-left corner">↙</button><button type="button" data-spot="br" title="Front-right corner">↘</button>
+        </div>
+      </div>
       <canvas id="cv"></canvas>
       <div class="legend" id="legend"></div>
     </div>
@@ -207,6 +235,7 @@ const S = {
   klippy: "disconnected", klippyMsg: "",
   th: null, kin: "", cfgMaxAccel: null, print: "",
   live: null, trail: [],
+  free: false, hover: null, freeTarget: null, view: null,
   proxy: false, running: false, inTest: false, abort: false, estopped: false,
   prog: null, progress: 0, test: "square",
 };
@@ -861,7 +890,7 @@ function renderStatus() {
   if (S.connected) {
     if (S.klippy === "ready") {
       if (busyPrinting()) { txt = `Printer is ${S.print}`; cls = "warn"; }
-      else if (S.running) { txt = "Running test"; cls = "ok"; }
+      else if (S.running) { txt = S.inTest ? "Running test" : "Moving"; cls = "ok"; }
       else { txt = "Ready"; cls = "ok"; }
     } else if (S.klippy === "disconnected") { txt = "Unreachable"; cls = "bad"; }
     else { txt = `Klipper: ${S.klippy}`; cls = S.klippy === "startup" ? "warn" : "bad"; }
@@ -876,6 +905,10 @@ function renderStatus() {
   $("#homeBtn").disabled = !canMove;
   $("#centerBtn").disabled = !canMove || !homedXYZ();
   $("#motorsOffBtn").disabled = !canMove;
+  $("#freeBtn").disabled = !ready || S.inTest;
+  $("#freeBtn").textContent = `Free mode: ${S.free ? "on" : "off"}`;
+  $("#freeBtn").classList.toggle("on", S.free);
+  for (const b of document.querySelectorAll("#freePanel button")) b.disabled = !canMove;
   $("#stopBtn").disabled = !S.inTest || S.abort;
   $("#estopBtn").disabled = !S.connected;
   $("#restartBtn").classList.toggle("hidden", !(S.connected && (S.klippy === "shutdown" || S.klippy === "error")));
@@ -929,6 +962,7 @@ function draw() {
   const sc = Math.min((W - 2 * pad) / bw, (H - 2 * pad) / bh);
   const ox = (W - bw * sc) / 2, oy = (H - bh * sc) / 2;
   const X = (x) => ox + (x - L.xmin) * sc, Y = (y) => oy + (L.ymax - y) * sc;
+  S.view = { L, sc, ox, oy };
 
   // grid
   ctx.lineWidth = 1;
@@ -949,7 +983,12 @@ function draw() {
   ctx.fillText("Y ↑", X(L.xmin) - 24, Y(L.ymax) + 10);
 
   const P = S.prog;
-  if (P) {
+  if (S.free) {
+    const b = safeBounds();
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = "#4da3ff66"; ctx.lineWidth = 1;
+    ctx.strokeRect(X(b.x0), Y(b.y1), (b.x1 - b.x0) * sc, (b.y1 - b.y0) * sc);
+    ctx.setLineDash([]);
+  } else if (P) {
     const a = P.a;
     ctx.setLineDash([4, 4]); ctx.strokeStyle = "#4da3ff66";
     ctx.strokeRect(X(a.x0), Y(a.y1), a.w * sc, a.h * sc);
@@ -988,12 +1027,33 @@ function draw() {
     ctx.fillStyle = "#fff"; ctx.strokeStyle = "#ff5d5d"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(hx, hy, 5, 0, 7); ctx.fill(); ctx.stroke();
   }
+  if (S.free && S.freeTarget) {
+    const [tx, ty] = S.freeTarget;
+    ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(X(tx), Y(ty), 9, 0, 7); ctx.moveTo(X(tx) - 13, Y(ty)); ctx.lineTo(X(tx) + 13, Y(ty)); ctx.moveTo(X(tx), Y(ty) - 13); ctx.lineTo(X(tx), Y(ty) + 13); ctx.stroke();
+  }
+  if (S.free && S.hover) {
+    const { x, y } = S.hover, ok = inSafe(S.hover), px = X(x), py = Y(y);
+    const col = !ok ? "#ff5d5d" : S.running ? "#8e96a8" : "#4da3ff";
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(px, Y(L.ymin)); ctx.lineTo(px, Y(L.ymax)); ctx.moveTo(X(L.xmin), py); ctx.lineTo(X(L.xmax), py); ctx.stroke();
+    ctx.setLineDash([]);
+    const label = !ok ? "outside safe area" : S.running ? "moving…" : `X${x.toFixed(1)} Y${y.toFixed(1)}`;
+    ctx.font = "12px ui-monospace, Menlo, monospace";
+    const tw = ctx.measureText(label).width + 12;
+    let lx = px + 12, ly = py - 26;
+    if (lx + tw > W - 4) lx = px - 12 - tw;
+    if (ly < 4) ly = py + 10;
+    ctx.fillStyle = "#0b0d11e6"; ctx.fillRect(lx, ly, tw, 20);
+    ctx.strokeStyle = col; ctx.strokeRect(lx + .5, ly + .5, tw - 1, 19);
+    ctx.fillStyle = col === "#4da3ff" ? "#e7e9ee" : col; ctx.textAlign = "left"; ctx.fillText(label, lx + 6, ly + 14);
+  }
   renderLegend();
 }
 
 function renderLegend() {
-  const P = S.prog, lg = $("#legend");
-  const items = [["#3ecf8e", "start"], ["#5d6577", "travel"]];
+  const P = S.free ? null : S.prog, lg = $("#legend");
+  const items = S.free ? [["#4da3ff", "safe area"], ["#ffd166", "target"]] : [["#3ecf8e", "start"], ["#5d6577", "travel"]];
   if (P && P.kmax > 0) {
     if (P.kmin !== P.kmax) items.push([`linear-gradient(90deg, ${speedColor(0, 0, 1)}, ${speedColor(1, 0, 1)})`, `${f2(P.kmin)} → ${f2(P.kmax)} ${P.unit}`]);
     else items.push([speedColor(1, 0, 2), `${f2(P.kmax)} ${P.unit}`]);
@@ -1078,6 +1138,7 @@ async function runTest() {
   if (await dialog("Run test?", body, [{ label: "Cancel", value: false }, { label: "Run", value: true, cls: "primary" }]) !== true) return;
 
   setError("");
+  if (S.free) setFree(false);
   S.running = true; S.inTest = true; S.abort = false; S.estopped = false; S.trail = [];
   saveCommon(); renderStatus(); schedulePoll();
   const origAccel = S.th.max_accel;
@@ -1217,6 +1278,92 @@ $("#estopBtn").onclick = estop;
 $("#restartBtn").onclick = firmwareRestart;
 $("#homeBtn").onclick = () => simple("Homing", "G28");
 $("#motorsOffBtn").onclick = () => simple("Motors off", "M84");
+// ---------- free mode ----------
+function safeBounds() {
+  const L = limits();
+  return { x0: L.xmin + MARGIN, x1: L.xmax - MARGIN, y0: L.ymin + MARGIN, y1: L.ymax - MARGIN };
+}
+function inSafe(p) { const b = safeBounds(); return p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1; }
+
+function setFree(on) {
+  S.free = on; S.hover = null; S.freeTarget = null;
+  if (on) S.trail = [];
+  $("#freePanel").classList.toggle("hidden", !on);
+  cv.classList.toggle("free", on);
+  renderStatus(); draw();
+}
+
+function canvasToBed(ev) {
+  const v = S.view;
+  if (!v) return null;
+  const r = cv.getBoundingClientRect();
+  return { x: v.L.xmin + (ev.clientX - r.left - v.ox) / v.sc, y: v.L.ymax - (ev.clientY - r.top - v.oy) / v.sc };
+}
+
+// target() is evaluated after any homing, so jogs use the real position.
+async function freeMove(target) {
+  if (S.running) return; // ignore until the nozzle arrives
+  if (!(S.connected && S.klippy === "ready")) return log("Klipper is not ready.", "err");
+  if (busyPrinting()) return log(`Refusing to move: printer is ${S.print}.`, "err");
+  if (!homedXYZ()) {
+    const go = await dialog("Printer not homed", "The printer must be homed before it can move. Home all axes now (G28)?",
+      [{ label: "Cancel", value: false }, { label: "Home", value: true, cls: "primary" }]);
+    if (go !== true) return;
+    S.running = true; renderStatus();
+    try { log("Homing (G28)…"); await gcode("G28"); await fetchObjects(); log("Homed", "ok"); }
+    catch (e) { log("Homing failed: " + e.message, "err"); return; }
+    finally { S.running = false; renderStatus(); }
+  }
+  const b = safeBounds();
+  let [x, y] = target();
+  x = clamp(x, b.x0, b.x1); y = clamp(y, b.y0, b.y1);
+  const v = Math.min(Math.max(1, num("freeSpeed", 100)), maxVel());
+  const z = S.th.position[2], zt = Math.min(S.th.axis_maximum[2], Math.max(z, Math.max(0, num("zlift", 10))));
+  const lines = ["SAVE_GCODE_STATE NAME=axisfree", "G90"];
+  if (zt > z + 0.01) lines.push(`G1 Z${f2(zt)} F600`);
+  lines.push(`G1 X${x.toFixed(3)} Y${y.toFixed(3)} F${Math.round(v * 60)}`, "M400", "RESTORE_GCODE_STATE NAME=axisfree");
+  S.running = true; S.freeTarget = [x, y];
+  renderStatus(); draw(); schedulePoll();
+  try { await gcode(lines.join("\n")); log(`Moved to X${f2(x)} Y${f2(y)} @ ${f2(v)} mm/s`); }
+  catch (e) { if (!S.estopped) log("Move failed: " + e.message, "err"); }
+  finally { S.running = false; S.freeTarget = null; renderStatus(); draw(); poll(); }
+}
+
+function jog(dx, dy) {
+  const st = parseFloat($("#jogStep").value) || 10;
+  freeMove(() => [S.th.position[0] + dx * st, S.th.position[1] + dy * st]);
+}
+
+$("#freeBtn").onclick = () => setFree(!S.free);
+cv.addEventListener("mousemove", (e) => { if (S.free) { S.hover = canvasToBed(e); draw(); } });
+cv.addEventListener("mouseleave", () => { if (S.hover) { S.hover = null; draw(); } });
+cv.addEventListener("click", (e) => {
+  if (!S.free || S.running) return;
+  const p = canvasToBed(e);
+  if (p && inSafe(p)) freeMove(() => [p.x, p.y]);
+});
+for (const btn of document.querySelectorAll("[data-jog]")) {
+  const [dx, dy] = btn.dataset.jog.split(",").map(Number);
+  btn.onclick = () => jog(dx, dy);
+}
+for (const btn of document.querySelectorAll("[data-spot]")) {
+  btn.onclick = () => freeMove(() => {
+    const b = safeBounds(), L = limits();
+    return {
+      c: [(L.xmin + L.xmax) / 2, (L.ymin + L.ymax) / 2],
+      tl: [b.x0, b.y1], tr: [b.x1, b.y1], bl: [b.x0, b.y0], br: [b.x1, b.y0],
+    }[btn.dataset.spot];
+  });
+}
+document.addEventListener("keydown", (e) => {
+  if (!S.free || $("#dlg").open || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName)) return;
+  const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+  if (!d) return;
+  e.preventDefault();
+  if (!$("#freePanel button").disabled) jog(...d);
+});
+
 $("#centerBtn").onclick = () => {
   const a = area();
   simple("Go to center", `SAVE_GCODE_STATE NAME=axistest_c\nG90\nG1 X${f2(a.cx)} Y${f2(a.cy)} F${Math.round(Math.min(TRAVEL_SPEED, maxVel()) * 60)}\nRESTORE_GCODE_STATE NAME=axistest_c`);

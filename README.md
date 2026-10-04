@@ -26,6 +26,12 @@ Every run:
 
 **Stop** halts motion after about 2–3 s, once the moves already queued have run. **EMERGENCY STOP** halts the printer immediately. After an emergency stop, click **Firmware restart** and home the printer again.
 
+## Free mode
+
+Click **Free mode** above the map. Then click anywhere on the map and the nozzle moves there at the free-mode speed. A crosshair shows the exact X/Y before you click. Clicks are ignored until the nozzle arrives.
+
+Free mode also has jog buttons for X/Y (1, 10 or 50 mm, or the arrow keys) and buttons to go to the center or any of the four corners. Moves stay inside the bed's safe area. The printer is homed first if needed, and Z is lifted the same way as for the tests.
+
 ## Setup
 
 In this folder, run:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve index.html and forward Moonraker API calls to the printer.
+"""Serve the app files and forward Moonraker API calls to the printer.
 
 The browser talks only to this server (same origin), so the printer's
 moonraker.conf needs no cors_domains change.
@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 ROOT = Path(__file__).resolve().parent
 API_PREFIXES = ("/printer/", "/server/", "/machine/", "/access/")
+STATIC = {"index.html": "text/html; charset=utf-8", "style.css": "text/css; charset=utf-8", "app.js": "text/javascript; charset=utf-8"}
 ALLOWED_HOSTS = {f"localhost:{PORT}", f"127.0.0.1:{PORT}"}
 
 
@@ -44,8 +45,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get("Host") not in ALLOWED_HOSTS:
             return self.error(403, "Open this app at http://localhost:%d" % PORT)
         path = urlparse(self.path).path
-        if path in ("/", "/index.html") and self.command == "GET":
-            return self.reply(200, (ROOT / "index.html").read_bytes(), "text/html; charset=utf-8")
+        if self.command == "GET" and (path == "/" or path.lstrip("/") in STATIC):
+            name = "index.html" if path == "/" else path.lstrip("/")
+            return self.reply(200, (ROOT / name).read_bytes(), STATIC[name])
         if path == "/__axis_proxy":
             return self.reply(200, {"proxy": True})
         if path.startswith(API_PREFIXES):

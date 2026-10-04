@@ -128,7 +128,7 @@ dialog .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1
 
 <div class="banner hidden" id="fileBanner">
   This page was opened as a local file, so the browser sends <code>Origin: null</code>, which Moonraker's CORS check rejects.
-  Serve it instead: <code>python3 -m http.server 8000</code> in this folder, then open <code>http://localhost:8000</code>. See README.md.
+  Run <code>python3 serve.py</code> in this folder instead, then open <code>http://localhost:8000</code>. See README.md.
 </div>
 <div class="banner bad hidden" id="errBanner"></div>
 
@@ -207,7 +207,7 @@ const S = {
   klippy: "disconnected", klippyMsg: "",
   th: null, kin: "", cfgMaxAccel: null, print: "",
   live: null, trail: [],
-  running: false, inTest: false, abort: false, estopped: false,
+  proxy: false, running: false, inTest: false, abort: false, estopped: false,
   prog: null, progress: 0, test: "square",
 };
 
@@ -242,12 +242,13 @@ function normalizeAddr(raw) {
 async function api(path, { method = "GET", body, timeout = 6000 } = {}) {
   const headers = {};
   if (S.key) headers["X-Api-Key"] = S.key;
+  if (S.proxy) headers["X-Moonraker-Target"] = S.base;
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const ctl = new AbortController();
   const timer = timeout ? setTimeout(() => ctl.abort(), timeout) : null;
   let res;
   try {
-    res = await fetch(S.base + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, signal: ctl.signal });
+    res = await fetch((S.proxy ? "" : S.base) + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, signal: ctl.signal });
   } catch (e) {
     if (e.name === "AbortError") throw new Error("Request timed out");
     const err = new Error("Network/CORS error — printer unreachable or this page's origin isn't allowed");
@@ -331,8 +332,9 @@ async function fetchObjects() {
 function corexyNote() { return S.kin === "corexy" || !S.kin; }
 
 function corsHint() {
-  if (location.protocol === "file:") return " — opened as a file; serve it over http (see banner).";
-  return ` — check the address, and that moonraker.conf [authorization] cors_domains includes ${location.origin}`;
+  if (location.protocol === "file:") return " — opened as a file; run serve.py instead (see banner).";
+  if (S.proxy) return " — check the address";
+  return ` — check the address. If it's right, the printer is blocking this page (CORS): run python3 serve.py and open http://localhost:8000, or add ${location.origin} to cors_domains in moonraker.conf`;
 }
 
 function setError(msg, kind = "") {
@@ -1101,7 +1103,14 @@ loadCommon();
 if (!$("#cx").value) setDefaultCenter();
 renderPresets(); renderTests(); renderParams(); update();
 log("Enter your Fluidd address and press Connect.");
-if ($("#addr").value) connect();
+// When served by serve.py, route API calls through it so the printer needs no CORS config.
+(async () => {
+  if (location.protocol.startsWith("http")) {
+    try { S.proxy = (await (await fetch("/__axis_proxy", { cache: "no-store" })).json()).proxy === true; } catch {}
+  }
+  if (S.proxy) log("Using serve.py proxy — no moonraker.conf change needed.");
+  if ($("#addr").value) connect();
+})();
 </script>
 </body>
 </html>

@@ -24,35 +24,29 @@ Every run:
 
 ## Setup
 
-### 1. Allow the page in Moonraker (once)
+In this folder, run:
 
-On the printer, open `moonraker.conf` (in Fluidd: *Configuration → moonraker.conf*). Add your origin to the `[authorization]` section:
+```bash
+python3 serve.py
+```
+
+Open http://localhost:8000. Enter the address you use for Fluidd (for example `192.168.1.103:4408`, or the full `http://…/#/` URL) and click **Connect**.
+
+`serve.py` (Python standard library only) serves the page and forwards the API calls to the printer. The browser only ever talks to `localhost`, so you don't need to change anything on the printer. This matters on Creality printers (K1, K2), where `moonraker.conf` isn't editable from Fluidd.
+
+If Moonraker asks for a login, either add your computer's IP to `trusted_clients` or paste an API key into the app.
+
+### Without serve.py
+
+You can also serve `index.html` any other way, but then the browser calls Moonraker directly, and Moonraker has to allow the page's origin. Add the origin to the `[authorization]` section of `moonraker.conf`, then restart Moonraker:
 
 ```ini
 [authorization]
 cors_domains:
     http://localhost:8000
-    http://127.0.0.1:8000
-trusted_clients:
-    192.168.0.0/16
-    10.0.0.0/8
 ```
 
-Keep any entries that are already there. If `trusted_clients` already covers your computer's IP, leave it as it is. Otherwise you can paste a Moonraker API key into the app. Restart Moonraker after saving the file.
-
-### 2. Serve the page
-
-You can't double-click `index.html`. A page opened as a local file sends `Origin: null`, and Moonraker blocks that.
-
-```bash
-python3 -m http.server 8000
-```
-
-Run this command in this folder, then open http://localhost:8000. Enter the address you use for Fluidd (for example `192.168.1.50`, or the full `http://…/#/` URL) and click **Connect**.
-
-**No-config alternative:** copy `index.html` into the Fluidd web folder on the Pi (usually `~/fluidd/axis.html`) and open `http://<printer>/axis.html`. The page and Moonraker then share an origin, so you don't need `cors_domains`.
-
-If you open Fluidd over **https**, the browser blocks this http page from calling it (mixed content). Use the no-config alternative above instead.
+You can't double-click `index.html`. A page opened as a local file sends `Origin: null`, and Moonraker always blocks that.
 
 ## Try it without a printer
 

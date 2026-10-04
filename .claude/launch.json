@@ -1,7 +1,30 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "app", "runtimeExecutable": "python3", "runtimeArgs": ["serve.py"], "port": 8000 },
-    { "name": "mock-moonraker", "runtimeExecutable": "python3", "runtimeArgs": ["mock/mock_moonraker.py"], "port": 7125 }
+    {
+      "name": "app",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "serve.py"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "mock-moonraker",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "mock/mock_moonraker.py"
+      ],
+      "port": 7125
+    },
+    {
+      "name": "app-test",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "serve.py",
+        "8001"
+      ],
+      "port": 8001
+    }
   ]
 }

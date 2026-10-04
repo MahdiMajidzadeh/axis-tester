@@ -11,6 +11,10 @@ A single-file web app (`index.html`) that connects to a Klipper printer through 
 | Circle / ellipse | Draws a circle from many short line segments, so it works without `[gcode_arcs]` | The path is smooth, with no flat spots or clunks |
 | Zig-zag | Rows and/or columns with sharp direction reversals | The frame doesn't rock and the head returns to its start |
 | Random points + return | Moves to random points, then returns to a reference point you marked | The nozzle lines up with your mark. **Klipper can't detect skipped steps, but this test can** |
+| Acceleration ramp | Moves along one line at a fixed speed while the acceleration steps up | The first acceleration that thuds, clicks or shifts the head is your limit |
+| Star (all angles) | Draws spokes out from the center every 10–45°. Each angle uses a different mix of motors A and B | Every spoke is straight and sounds about the same |
+| Spiral | Spirals outward, then back inward | Smooth, even sound with no buzz at any particular radius |
+| Backlash / repeatability | Reaches one target point from 4 or 8 directions, pausing there each time | The nozzle stops on your mark from every direction |
 
 Every run:
 - refuses to start while a print is running or paused

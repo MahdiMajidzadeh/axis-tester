@@ -386,8 +386,8 @@ const f2 = (n) => (Math.round(n * 100) / 100).toString();
 
 function setDefaultCenter() {
   const L = limits();
-  $("#cx").value = Math.round((L.xmin + L.xmax) / 2);
-  $("#cy").value = Math.round((L.ymin + L.ymax) / 2);
+  $("#cx").value = f2((L.xmin + L.xmax) / 2);
+  $("#cy").value = f2((L.ymin + L.ymax) / 2);
 }
 
 function area() {
@@ -400,7 +400,7 @@ function area() {
   let cx = num("cx", (L.xmin + L.xmax) / 2), cy = num("cy", (L.ymin + L.ymax) / 2);
   const ncx = clamp(cx, L.xmin + MARGIN + w / 2, L.xmax - MARGIN - w / 2);
   const ncy = clamp(cy, L.ymin + MARGIN + h / 2, L.ymax - MARGIN - h / 2);
-  if (Math.abs(ncx - cx) > 0.01 || Math.abs(ncy - cy) > 0.01) notes.push(`center moved to ${f2(ncx)}, ${f2(ncy)} to fit the bed`);
+  if (Math.abs(ncx - cx) > 0.5 || Math.abs(ncy - cy) > 0.5) notes.push(`center moved to ${f2(ncx)}, ${f2(ncy)} to fit the bed`);
   cx = ncx; cy = ncy;
   return { w, h, cx, cy, x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2, notes };
 }
@@ -412,7 +412,7 @@ function area() {
 //   {t:"note", msg}            log line when reached
 //   {t:"pause", msg}           wait for motion to finish and ask the user
 //   {t:"done", msg}            message shown after the test finishes
-const mv = (x, y, v, tag = "") => ({ t: "move", x, y, v, tag });
+const mv = (x, y, v, tag = "", k) => ({ t: "move", x, y, v, tag, k });
 const travel = (x, y) => ({ t: "move", x, y, v: TRAVEL_SPEED, tag: "travel" });
 const note = (msg) => ({ t: "note", msg });
 
@@ -431,6 +431,14 @@ function diagLine(a, which) {
     ? [[a.cx - d, a.cy - d], [a.cx + d, a.cy + d]]   // dX = dY  → only motor A turns
     : [[a.cx - d, a.cy + d], [a.cx + d, a.cy - d]];  // dX = -dY → only motor B turns
 }
+
+const DIR_OPTIONS = [["X", "X only"], ["Y", "Y only"], ["A", "Diagonal A (45°)"], ["B", "Diagonal B (−45°)"], ["all", "All four, one after another"]];
+function dirLine(a, d) {
+  if (d === "X") return [[a.x0, a.cy], [a.x1, a.cy]];
+  if (d === "Y") return [[a.cx, a.y0], [a.cx, a.y1]];
+  return diagLine(a, d);
+}
+const linSteps = (from, to, n) => [...Array(n)].map((_, i) => Math.round(from + (to - from) * i / (n - 1)));
 
 const TESTS = {
   square: {
@@ -464,20 +472,16 @@ const TESTS = {
     tip: "Watch and listen as the speed steps up. The first speed where you hear clicking/grinding or the head drifts is your practical limit; keep printing speeds ~20% below it. Compare X vs Y vs A/B.",
     noSpeed: true,
     params: [
-      { id: "dir", label: "Direction", type: "select", options: [["X", "X only"], ["Y", "Y only"], ["A", "Diagonal A (45°)"], ["B", "Diagonal B (−45°)"], ["all", "All four, one after another"]], def: "X" },
-      { id: "vStart", label: "Start speed (mm/s)", type: "number", def: 50, min: 1, step: 10 },
-      { id: "vEnd", label: "End speed (mm/s)", type: "number", def: 300, min: 1, step: 10 },
+      { id: "dir", label: "Direction", type: "select", options: DIR_OPTIONS, def: "X" },
+      { id: "vStart", label: "Start speed (mm/s)", type: "number", def: 50, min: 1, step: 10, cap: "speed" },
+      { id: "vEnd", label: "End speed (mm/s)", type: "number", def: 300, min: 1, step: 10, cap: "speed" },
       { id: "steps", label: "Speed steps", type: "number", def: 6, min: 2, max: 30, step: 1 },
     ],
     build(a, p) {
       const s = [], dirs = p.dir === "all" ? ["X", "Y", "A", "B"] : [p.dir];
-      const n = Math.max(2, Math.round(p.steps));
-      const speeds = [...Array(n)].map((_, i) => Math.round(p.vStart + (p.vEnd - p.vStart) * i / (n - 1)));
+      const speeds = linSteps(p.vStart, p.vEnd, clamp(Math.round(p.steps), 2, 30));
       for (const d of dirs) {
-        let p0, p1;
-        if (d === "X") { p0 = [a.x0, a.cy]; p1 = [a.x1, a.cy]; }
-        else if (d === "Y") { p0 = [a.cx, a.y0]; p1 = [a.cx, a.y1]; }
-        else [p0, p1] = diagLine(a, d);
+        const [p0, p1] = dirLine(a, d);
         s.push(travel(...p0));
         for (const v of speeds) {
           s.push(note(`${d} @ ${v} mm/s`));
@@ -568,6 +572,117 @@ const TESTS = {
       return s;
     },
   },
+  accelramp: {
+    name: "Acceleration ramp",
+    desc: "Same line at one speed while acceleration steps up — find your real accel limit.",
+    tip: "Speed stays fixed; only acceleration rises. Listen at the ends of each line: the first step where you hear a thud or click, or the head shifts, is your accel limit — use ~20% less in your slicer. Use a high speed and a long line, otherwise the head never reaches full speed and the test shows little.",
+    noAccel: true,
+    colorUnit: "mm/s²",
+    params: [
+      { id: "dir", label: "Direction", type: "select", options: DIR_OPTIONS, def: "X" },
+      { id: "aStart", label: "Start accel (mm/s²)", type: "number", def: 1000, min: 100, step: 500, cap: "accel" },
+      { id: "aEnd", label: "End accel (mm/s²)", type: "number", def: 10000, min: 100, step: 500, cap: "accel" },
+      { id: "steps", label: "Accel steps", type: "number", def: 6, min: 2, max: 30, step: 1 },
+    ],
+    build(a, p) {
+      const v = p.speed, s = [], dirs = p.dir === "all" ? ["X", "Y", "A", "B"] : [p.dir];
+      const accs = linSteps(p.aStart, p.aEnd, clamp(Math.round(p.steps), 2, 30));
+      for (const d of dirs) {
+        const [p0, p1] = dirLine(a, d);
+        const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+        const need = v * v / Math.min(...accs); // accelerate + decelerate distance
+        if (need > len) p.notes.push(`${d}: at ${Math.min(...accs)} mm/s² the head needs ${f2(need)} mm to reach ${f2(v)} mm/s but the line is ${f2(len)} mm`);
+        s.push(travel(...p0));
+        for (const acc of accs) {
+          s.push({ t: "g", g: `SET_VELOCITY_LIMIT ACCEL=${acc}` }, note(`${d} @ ${v} mm/s, accel ${acc} mm/s²`));
+          for (let r = 0; r < p.repeats; r++) s.push(mv(...p1, v, "", acc), mv(...p0, v, "", acc));
+          s.push({ t: "g", g: "G4 P400" });
+        }
+      }
+      s.push(travel(a.cx, a.cy));
+      return s;
+    },
+  },
+  star: {
+    name: "Star (all angles)",
+    desc: "Spokes out from the center at every angle — each angle mixes motors A and B differently.",
+    tip: "Every spoke should be straight and sound about the same. If one angle is louder, rougher, or doesn't return to the center, the problem depends on direction: belt tension, a binding rail or a pulley. With a square area, the 45° spokes move only motor A or only motor B (orange/purple).",
+    params: [
+      { id: "angle", label: "Angle step", type: "select", options: [["10", "10°"], ["15", "15°"], ["30", "30°"], ["45", "45°"]], def: "15" },
+    ],
+    build(a, p) {
+      const v = p.speed, stepDeg = +p.angle || 15, s = [travel(a.cx, a.cy)];
+      for (let r = 0; r < p.repeats; r++) {
+        s.push(note(`Star, every ${stepDeg}° @ ${v} mm/s`));
+        for (let deg = 0; deg < 360; deg += stepDeg) {
+          const th = deg * Math.PI / 180;
+          const dx = a.w / 2 * Math.cos(th), dy = a.h / 2 * Math.sin(th);
+          const single = Math.abs(dx) > 1e-6 && Math.abs(Math.abs(dx) - Math.abs(dy)) < 1e-6;
+          const tag = single ? (Math.sign(dx) === Math.sign(dy) ? "A" : "B") : "";
+          s.push(mv(a.cx + dx, a.cy + dy, v, tag), mv(a.cx, a.cy, v, tag));
+        }
+      }
+      return s;
+    },
+  },
+  spiral: {
+    name: "Spiral",
+    desc: "Outward then inward spiral — direction and radius change all the time.",
+    tip: "It should sound smooth and even the whole way. A buzz or rattle that appears only at a certain radius points to a resonance at that frequency. Compare the white live path with the preview: flattened or wobbly rings point to backlash.",
+    params: [
+      { id: "turns", label: "Turns", type: "number", def: 6, min: 1, max: 50, step: 1 },
+    ],
+    build(a, p) {
+      const v = p.speed, rx = a.w / 2, ry = a.h / 2, s = [];
+      const turns = clamp(Math.round(p.turns), 1, 50), thMax = turns * 2 * Math.PI;
+      const seg = Math.max(2, v * 0.02), rMax = Math.max(rx, ry);
+      const pts = [];
+      for (let th = 0; th < thMax;) {
+        const r = rMax * th / thMax;
+        th = Math.min(thMax, th + clamp(seg / Math.max(r, seg), Math.PI / 180, Math.PI / 12));
+        const k = th / thMax;
+        pts.push([a.cx + rx * k * Math.cos(th), a.cy + ry * k * Math.sin(th)]);
+      }
+      s.push(travel(a.cx, a.cy));
+      for (let r = 0; r < p.repeats; r++) {
+        s.push(note(`Spiral out, ${turns} turns @ ${v} mm/s`));
+        for (const q of pts) s.push(mv(...q, v));
+        s.push(note("Spiral in"));
+        for (let i = pts.length - 2; i >= 0; i--) s.push(mv(...pts[i], v));
+        s.push(mv(a.cx, a.cy, v));
+      }
+      return s;
+    },
+  },
+  backlash: {
+    name: "Backlash / repeatability",
+    desc: "Arrives at one point from every direction, many times — it should stop on the same spot.",
+    tip: "Watch the nozzle against your mark each time it stops on the target. From every direction it should stop on exactly the same spot. If it stops a little short when coming from one side, that axis has backlash: a loose belt, a loose pulley grub screw, or a worn idler.",
+    params: [
+      { id: "dirs", label: "Approach directions", type: "select", options: [["4", "4 (±X, ±Y)"], ["8", "8 (+ diagonals)"]], def: "4" },
+      { id: "dist", label: "Approach distance (mm)", type: "number", def: 30, min: 1, step: 5 },
+      { id: "dwell", label: "Stop on target (ms)", type: "number", def: 800, min: 0, max: 10000, step: 100 },
+    ],
+    build(a, p) {
+      const v = p.speed, n = +p.dirs || 4, s = [];
+      const maxD = Math.min(a.w, a.h) / 2;
+      let d = Math.max(1, p.dist);
+      if (d > maxD) { p.notes.push(`approach distance ${f2(d)} → ${f2(maxD)} mm to stay inside the area`); d = maxD; }
+      const dwell = Math.round(clamp(p.dwell, 0, 10000));
+      s.push(travel(a.cx, a.cy));
+      s.push({ t: "pause", msg: `The nozzle is at the target X${f2(a.cx)} Y${f2(a.cy)}. Mark its position now (tape + marker under the nozzle), then continue within 10 minutes (Klipper's idle timeout turns the motors off). Watch the nozzle each time it stops on the target.` });
+      for (let r = 0; r < p.repeats; r++) {
+        s.push(note(`Round ${r + 1}: approach from ${n} directions @ ${v} mm/s`));
+        for (let i = 0; i < n; i++) {
+          const th = 2 * Math.PI * i / n;
+          s.push(mv(a.cx + d * Math.cos(th), a.cy + d * Math.sin(th), v), mv(a.cx, a.cy, v));
+          if (dwell) s.push({ t: "g", g: `G4 P${dwell}` });
+        }
+      }
+      s.push({ t: "done", msg: `Finished at the target X${f2(a.cx)} Y${f2(a.cy)}. Did the nozzle stop on your mark from every direction? A small, repeatable miss from one side = backlash on that axis; a miss that grows each round = skipped steps.` });
+      return s;
+    },
+  },
 };
 
 // ---------- params UI ----------
@@ -591,6 +706,7 @@ function renderParams() {
   const t = TESTS[S.test], box = $("#testParams");
   $("#speedPresets").classList.toggle("hidden", !!t.noSpeed);
   $("#speed").closest("div").classList.toggle("hidden", !!t.noSpeed);
+  $("#accel").closest("div").classList.toggle("hidden", !!t.noAccel);
   box.innerHTML = "";
   box.classList.toggle("hidden", !t.params.length);
   const g = document.createElement("div");
@@ -626,12 +742,20 @@ function paramValues() {
     if (v > vm) { capped.push(`${what} ${f2(v)} → ${f2(vm)} mm/s (max_velocity)`); return vm; }
     return v;
   };
-  const p = { speed: t.noSpeed ? 0 : capV(num("speed", 100), "speed"), repeats: clamp(Math.round(num("repeats", 1)), 1, 50) };
+  const capA = (v, what) => {
+    v = Math.max(100, v);
+    const lim = S.cfgMaxAccel;
+    if (lim && v > lim) { capped.push(`${what} ${f2(v)} → ${f2(lim)} mm/s² (printer.cfg max_accel)`); return lim; }
+    return v;
+  };
+  const p = { speed: t.noSpeed ? 0 : capV(num("speed", 100), "speed"), repeats: clamp(Math.round(num("repeats", 1)), 1, 50), notes: [] };
   for (const d of t.params) {
     const el = $(`#p_${S.test}_${d.id}`);
     p[d.id] = d.type === "number" ? (Number.isFinite(parseFloat(el.value)) ? parseFloat(el.value) : d.def) : el.value;
+    const what = d.label.replace(/ \(.*\)$/, "").toLowerCase();
+    if (d.cap === "speed") p[d.id] = capV(p[d.id], what);
+    if (d.cap === "accel") p[d.id] = capA(p[d.id], what);
   }
-  if (S.test === "ramp") { p.vStart = capV(p.vStart, "start speed"); p.vEnd = capV(p.vEnd, "end speed"); }
   return { p, capped };
 }
 
@@ -646,23 +770,28 @@ function accelValue() {
 
 // ---------- program build + estimate ----------
 function buildProgram() {
-  const a = area(), { p, capped } = paramValues();
+  const a = area(), { p, capped } = paramValues(), T = TESTS[S.test];
   const vm = maxVel();
-  const steps = TESTS[S.test].build(a, p);
+  const steps = T.build(a, p);
   for (const st of steps) if (st.t === "move") st.v = Math.min(st.v, vm);
   // estimate
-  let pos = S.live ? [S.live[0], S.live[1]] : null, time = 0, dist = 0, vmin = Infinity, vmax = 0, moves = 0;
+  let pos = S.live ? [S.live[0], S.live[1]] : null, time = 0, dist = 0, vmin = Infinity, vmax = 0, kmin = Infinity, kmax = 0, moves = 0;
   for (const st of steps) {
     if (st.t === "g") { const m = /P(\d+)/.exec(st.g); if (m) time += +m[1] / 1000; }
     if (st.t !== "move") continue;
     if (pos) { const d = Math.hypot(st.x - pos[0], st.y - pos[1]); time += d / st.v; if (st.tag !== "travel") dist += d; }
     pos = [st.x, st.y];
-    if (st.tag !== "travel") { vmin = Math.min(vmin, st.v); vmax = Math.max(vmax, st.v); moves++; }
+    if (st.tag !== "travel") {
+      vmin = Math.min(vmin, st.v); vmax = Math.max(vmax, st.v); moves++;
+      const k = st.k ?? st.v; kmin = Math.min(kmin, k); kmax = Math.max(kmax, k);
+    }
   }
-  const { accel, note: anote } = accelValue();
-  const notes = [...a.notes, ...capped];
+  const { accel, note: anote } = T.noAccel ? {} : accelValue();
+  const notes = [...a.notes, ...capped, ...p.notes];
   if (anote) notes.push(anote);
-  return { steps, a, p, time, dist, vmin, vmax, moves, accel, notes };
+  const accelText = T.noAccel ? `ramp ${f2(p.aStart)} → ${f2(p.aEnd)} mm/s²`
+    : accel ? `${f2(accel)} mm/s²` : "keep current" + (S.th ? ` (${f2(S.th.max_accel)})` : "");
+  return { steps, a, p, time, dist, vmin, vmax, kmin, kmax, unit: T.colorUnit || "mm/s", moves, accel, accelText, notes };
 }
 
 function fmtTime(s) {
@@ -677,7 +806,7 @@ function update() {
   const lines = [
     `Area     ${f2(P.a.w)} × ${f2(P.a.h)} mm @ (${f2(P.a.cx)}, ${f2(P.a.cy)})`,
     `Speed    ${P.vmin === P.vmax ? f2(P.vmax) : f2(P.vmin) + " – " + f2(P.vmax)} mm/s   (max ${f2(maxVel())})`,
-    `Accel    ${P.accel ? f2(P.accel) : "keep current" + (S.th ? ` (${f2(S.th.max_accel)})` : "")}`,
+    `Accel    ${P.accelText}`,
     `Moves    ${P.moves}, ${f2(P.dist / 1000)} m, ≈ ${fmtTime(P.time)} (+ accel time)`,
   ];
   const el = $("#eff");
@@ -833,7 +962,7 @@ function draw() {
         if (st.tag === "travel") { ctx.setLineDash([3, 4]); ctx.strokeStyle = "#5d6577"; ctx.lineWidth = 1; }
         else {
           ctx.setLineDash([]); ctx.lineWidth = 1.6;
-          ctx.strokeStyle = st.tag === "A" ? "#ff9f43" : st.tag === "B" ? "#b28cff" : speedColor(st.v, P.vmin, P.vmax);
+          ctx.strokeStyle = st.tag === "A" ? "#ff9f43" : st.tag === "B" ? "#b28cff" : speedColor(st.k ?? st.v, P.kmin, P.kmax);
         }
         ctx.globalAlpha = S.running ? 0.45 : 0.9;
         ctx.beginPath(); ctx.moveTo(X(prev[0]), Y(prev[1])); ctx.lineTo(X(st.x), Y(st.y)); ctx.stroke();
@@ -865,9 +994,9 @@ function draw() {
 function renderLegend() {
   const P = S.prog, lg = $("#legend");
   const items = [["#3ecf8e", "start"], ["#5d6577", "travel"]];
-  if (P && P.vmax > 0) {
-    if (P.vmin !== P.vmax) items.push([`linear-gradient(90deg, ${speedColor(0, 0, 1)}, ${speedColor(1, 0, 1)})`, `${f2(P.vmin)} → ${f2(P.vmax)} mm/s`]);
-    else items.push([speedColor(1, 0, 2), `${f2(P.vmax)} mm/s`]);
+  if (P && P.kmax > 0) {
+    if (P.kmin !== P.kmax) items.push([`linear-gradient(90deg, ${speedColor(0, 0, 1)}, ${speedColor(1, 0, 1)})`, `${f2(P.kmin)} → ${f2(P.kmax)} ${P.unit}`]);
+    else items.push([speedColor(1, 0, 2), `${f2(P.kmax)} ${P.unit}`]);
   }
   if (P && P.steps.some((s) => s.tag === "A")) items.push(["#ff9f43", "motor A only"], ["#b28cff", "motor B only"]);
   items.push(["#ffffff", "live path"]);
@@ -935,7 +1064,7 @@ async function runTest() {
     ["Test", T.name],
     ["Area", `${f2(P.a.w)} × ${f2(P.a.h)} mm`],
     ["Speed", P.vmin === P.vmax ? `${f2(P.vmax)} mm/s` : `${f2(P.vmin)} – ${f2(P.vmax)} mm/s`],
-    ["Accel", P.accel ? `${f2(P.accel)} mm/s²` : "unchanged"],
+    ["Accel", P.accelText],
     ["Est. time", "≈ " + fmtTime(P.time)],
     ["Homing first", homedXYZ() ? "no (already homed)" : "YES — G28", !homedXYZ()],
     ["Z lift", lift ? `to at least Z${f2(lift)}` : "none"],
@@ -981,6 +1110,7 @@ async function runTest() {
       const script = buf.join("\n");
       const tChunk = bufT;
       buf = []; bufT = 0;
+      if (script.includes("SET_VELOCITY_LIMIT")) accelChanged = true;
       await gcode(script);
       sentT += tChunk;
       const el = (performance.now() - t0) / 1000;
